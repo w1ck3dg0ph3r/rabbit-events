@@ -1,5 +1,8 @@
 # rabbit-events
 
+[![](https://goreportcard.com/badge/github.com/w1ck3dg0ph3r/rabbit-events)](https://goreportcard.com/report/github.com/w1ck3dg0ph3r/rabbit-events)
+[![](https://api.travis-ci.org/w1ck3dg0ph3r/rabbit-events.svg?branch=master)](https://travis-ci.org/w1ck3dg0ph3r/rabbit-events)
+
 Event bus implemented on top of RabbitMQ message broker.
 
 Guaranties at least once semantics on event delivery. Notice that
