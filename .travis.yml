@@ -1,15 +1,17 @@
 language: go
 
 go:
-  - "1.11"
+  - "1.11.4"
   - "1.12"
   - "1.13"
 
 env:
-  - GO111MODULE=on
+  - GO111MODULE=on COMPOSE_FILE=test/docker-compose.yml
 
 services:
   - docker
 
 script:
+  - docker-compose up -d
+  - docker-compose ps
   - make test-integration

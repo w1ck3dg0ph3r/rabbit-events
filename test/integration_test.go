@@ -5,8 +5,6 @@ package test_test
 import (
 	"bytes"
 	"fmt"
-	"os"
-	"os/exec"
 	"runtime"
 	"strconv"
 	"sync/atomic"
@@ -15,16 +13,6 @@ import (
 
 	events "github.com/w1ck3dg0ph3r/rabbit-events"
 )
-
-func TestMain(m *testing.M) {
-	if err := exec.Command("docker-compose", "up", "-d").Run(); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	status := m.Run()
-	//_ = exec.Command("docker-compose", "down", "--volumes").Run()
-	os.Exit(status)
-}
 
 type Logger struct{}
 

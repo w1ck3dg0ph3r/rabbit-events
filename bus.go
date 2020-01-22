@@ -259,7 +259,7 @@ func (bus *Bus) setupTopology() (err error) {
 	var args amqp.Table
 	if bus.EventTTL > 0 && bus.DeadEventExchange != "" {
 		args = amqp.Table{
-			"x-message-ttl":          bus.EventTTL.Milliseconds(),
+			"x-message-ttl":          int64(bus.EventTTL / time.Millisecond),
 			"x-dead-letter-exchange": bus.DeadEventExchange,
 		}
 	}

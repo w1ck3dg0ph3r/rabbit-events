@@ -100,5 +100,5 @@ func durationToMillisecondsString(d time.Duration) string {
 	if d == 0 {
 		return ""
 	}
-	return strconv.FormatInt(d.Milliseconds(), 10)
+	return strconv.FormatInt(int64(d/time.Millisecond), 10)
 }

@@ -1,6 +1,6 @@
 module github.com/w1ck3dg0ph3r/rabbit-events
 
-go 1.13
+go 1.11
 
 require (
 	github.com/pkg/errors v0.8.1
