@@ -1,7 +1,6 @@
-default:
-	@echo "noop"
+default: test
 
-test: test-unit test-integration
+test: test-unit
 
 test-unit:
 	go test -v ./...
