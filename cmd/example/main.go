@@ -1,34 +1,19 @@
-# rabbit-events
-
-Event bus implemented on top of RabbitMQ message broker.
-
-Guaranties at least once semantics on event delivery. Notice that
-event handling should be idempotent, otherwise additional event
-deduplication is required to ensure that the same event is not handled
-twice.
-
-See tests and runnable examples for additional info.
-
-## Features
-
-- Connection to a RabbitMQ cluster with automatic reconnection
-- Configurable concurrency for consuming and publishing
-- Broker topology setup
-- Batching of acknowledgements sent to broker
-- Pluggable logging
-
-## Usage Example
-
-```go
 package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	events "github.com/w1ck3dg0ph3r/rabbit-events"
 )
+
+var log = &logrus.Logger{
+	Out:       os.Stderr,
+	Level:     logrus.DebugLevel,
+	Formatter: &logrus.TextFormatter{},
+}
 
 func main() {
 	// Create an event bus
@@ -42,9 +27,9 @@ func main() {
 			DialTimeout:       1 * time.Second,
 			ConnectionTimeout: 10 * time.Second,
 			ConnectionBackoff: 1 * time.Second,
-			Logger:            nil,
+			Logger:            log,
 		},
-		AppName:              "app1",
+		AppName:              "testapp",
 		IngressExchange:      "ingress",
 		EgressExchange:       "ingress",
 		EventTTL:             60 * time.Second,
@@ -52,6 +37,7 @@ func main() {
 		ConcurrentConsumers:  4,
 		ConcurrentPublishers: 2,
 		MaxEventsInFlight:    100,
+		Logger:               log,
 
 		EventHandlers: events.EventHandlers{
 			"event1": func(e *events.Event, publish events.PublishFunc) {
@@ -87,4 +73,3 @@ func main() {
 	// Stop event bus
 	bus.Shutdown()
 }
-```
