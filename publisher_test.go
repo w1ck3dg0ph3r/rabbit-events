@@ -97,10 +97,10 @@ func TestPublisher_WaitsForConfirm(t *testing.T) {
 		ShutdownTimeout:        5 * time.Second,
 	}
 
+	ch.On("Close").Return(nil)
 	ch.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ch.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 		mock.Anything, mock.Anything).Return(amqp.Queue{}, nil)
-	ch.On("QueueBind", mock.Anything).Return(nil)
 
 	var confirms chan amqp.Confirmation
 
@@ -156,6 +156,7 @@ func TestPublisher_WaitsForConfirmOnShutdown(t *testing.T) {
 		ShutdownTimeout:        5 * time.Second,
 	}
 
+	ch.On("Close").Return(nil)
 	ch.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ch.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 		mock.Anything, mock.Anything).Return(amqp.Queue{}, nil)

@@ -39,6 +39,8 @@ func (c *Connection) Open() (channel.Channel, error) {
 		Channel: Channel{},
 	}
 
+	ch.On("Close").Return(nil)
+
 	ch.On("ExchangeDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 		mock.Anything, mock.Anything, mock.Anything).Return(nil)
 

@@ -50,21 +50,23 @@ func TestPublishConsume(t *testing.T) {
 	const count = 100
 	var recv int32
 
-	bus.EventHandlers = events.EventHandlers{
-		"e1": func(e *events.Event, pub events.PublishFunc) {
-			if !bytes.Equal(payload, e.Body) {
-				t.Fail()
-			}
-			atomic.AddInt32(&recv, 1)
-			e.Ack()
-		},
-		"e2": func(e *events.Event, pub events.PublishFunc) {
-			if !bytes.Equal(payload, e.Body) {
-				t.Fail()
-			}
-			atomic.AddInt32(&recv, 1)
-			e.Ack()
-		},
+	if err := bus.AddHandler("e1", func(e *events.Event, pub events.PublishFunc) {
+		if !bytes.Equal(payload, e.Body) {
+			t.Fail()
+		}
+		atomic.AddInt32(&recv, 1)
+		e.Ack()
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := bus.AddHandler("e2", func(e *events.Event, pub events.PublishFunc) {
+		if !bytes.Equal(payload, e.Body) {
+			t.Fail()
+		}
+		atomic.AddInt32(&recv, 1)
+		e.Ack()
+	}); err != nil {
+		t.Fatal(err)
 	}
 	if err := bus.Start(); err != nil {
 		t.Fatal(err)
@@ -119,11 +121,11 @@ func BenchmarkPublish(b *testing.B) {
 func BenchmarkConsume(b *testing.B) {
 	bus := eventBus()
 	counter := int64(b.N)
-	bus.EventHandlers = events.EventHandlers{
-		"event.test": func(e *events.Event, pub events.PublishFunc) {
-			atomic.AddInt64(&counter, -1)
-			e.Ack()
-		},
+	if err := bus.AddHandler("event.test", func(e *events.Event, pub events.PublishFunc) {
+		atomic.AddInt64(&counter, -1)
+		e.Ack()
+	}); err != nil {
+		b.Fatal(err)
 	}
 	if err := bus.Start(); err != nil {
 		b.Fatal(err)

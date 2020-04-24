@@ -38,24 +38,27 @@ func main() {
 		ConcurrentPublishers: 2,
 		MaxEventsInFlight:    100,
 		Logger:               log,
+	}
 
-		EventHandlers: events.EventHandlers{
-			"event1": func(e *events.Event, publish events.PublishFunc) {
-				fmt.Printf("event1 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
-				err := publish(&events.Event{Name: "event2", ID: "id2",
-					CorrelationID: e.ID})
-				if err != nil {
-					fmt.Println(err)
-					e.Nack(false)
-					return
-				}
-				e.Ack()
-			},
-			"event2": func(e *events.Event, publish events.PublishFunc) {
-				fmt.Printf("event2 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
-				e.Ack()
-			},
-		},
+	if err := bus.AddHandler("event1", func(e *events.Event, publish events.PublishFunc) {
+		fmt.Printf("event1 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
+		err := publish(&events.Event{Name: "event2", ID: "id2",
+			CorrelationID: e.ID})
+		if err != nil {
+			fmt.Println(err)
+			e.Nack(false)
+			return
+		}
+		e.Ack()
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := bus.AddHandler("event2", func(e *events.Event, publish events.PublishFunc) {
+		fmt.Printf("event2 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
+		e.Ack()
+	}); err != nil {
+		log.Fatal(err)
 	}
 
 	// Run event bus

@@ -14,7 +14,7 @@ import (
 // Bus is a RabbitMQ based event bus client
 //
 // Queue for the app, as well as ingress and egress exchanges will be created if absent.
-// Before starting the Bus, Connection, AppName, IngressExchange and EventHandlers must be set.
+// Before starting the Bus, Connection, AppName, IngressExchange and handlers must be set.
 type Bus struct {
 	// RabbitMQ connection
 	Connection ConnectionOpenCloser
@@ -64,16 +64,18 @@ type Bus struct {
 	// Default is 5s
 	ShutdownTimeout time.Duration
 
-	// Event handlers
-	// Do not modify after event bus is started
-	EventHandlers EventHandlers
-
 	Logger Logger
 
 	started    int32
 	done       chan error
 	quit       chan struct{}
 	shouldQuit chan error
+
+	handlersM sync.RWMutex
+	handlers  map[string]*[]EventHandler
+
+	topologyM     sync.Mutex
+	topologySetUp bool
 
 	consumers   []*consumer
 	publishers  []*publisher
@@ -150,6 +152,34 @@ func (bus *Bus) Run() (err error) {
 	return
 }
 
+// AddHandler adds handler for event
+//
+// This opens connection to the broker and creates a binding between the exchange and the app queue
+func (bus *Bus) AddHandler(event string, handler EventHandler) (err error) {
+	err = bus.ensureTopology()
+	if err != nil {
+		return
+	}
+	bus.handlersM.Lock()
+	defer bus.handlersM.Unlock()
+
+	if bus.handlers == nil {
+		bus.handlers = make(map[string]*[]EventHandler)
+	}
+	if handlers, ok := bus.handlers[event]; ok {
+		*handlers = append(*handlers, handler)
+	} else {
+		bus.handlers[event] = &[]EventHandler{handler}
+	}
+	ch, err := bus.Connection.Open()
+	if err != nil {
+		return
+	}
+	defer ch.Close()
+	err = ch.QueueBind(bus.AppName, event, bus.IngressExchange, false, nil)
+	return
+}
+
 // Publish publishes an event and blocks until publishing is confirmed or rejected by the broker
 func (bus *Bus) Publish(e *Event) (err error) {
 	p := newPublishing(e)
@@ -185,7 +215,7 @@ func (bus *Bus) init() (err error) {
 	bus.shouldQuit = make(chan error)
 	bus.done = make(chan error)
 
-	err = bus.setupTopology()
+	err = bus.ensureTopology()
 	if err != nil {
 		err = errors.Wrap(err, "cant setup topology")
 		bus.debugf(err.Error())
@@ -234,20 +264,31 @@ func (bus *Bus) startPublishers(wg *sync.WaitGroup) {
 
 // handleEvent routes given event msg to appropriate handler
 func (bus *Bus) handleEvent(e *Event) {
-	handle, ok := bus.EventHandlers[e.Name] // read, no lock needed
+	bus.handlersM.RLock()
+	defer bus.handlersM.RUnlock()
+
+	handlers, ok := bus.handlers[e.Name]
 	if !ok {
 		bus.debugf("unknown event from %s(%s): %s", e.AppID, e.ID, e.Name)
 		return
 	}
-	handle(e, bus.Publish)
+	for _, handle := range *handlers {
+		handle(e, bus.Publish)
+	}
 }
 
-// setupTopology creates associated exchanges, queues and bindings
-func (bus *Bus) setupTopology() (err error) {
+// ensureTopology creates associated exchanges, queues and bindings
+func (bus *Bus) ensureTopology() (err error) {
+	bus.topologyM.Lock()
+	defer bus.topologyM.Unlock()
+	if bus.topologySetUp {
+		return
+	}
 	ch, err := bus.Connection.Open()
 	if err != nil {
 		return
 	}
+	defer ch.Close()
 	err = ch.ExchangeDeclare(bus.IngressExchange, "topic", true, false, false, false, nil)
 	if err != nil {
 		return
@@ -267,12 +308,7 @@ func (bus *Bus) setupTopology() (err error) {
 	if err != nil {
 		return
 	}
-	for ev := range bus.EventHandlers {
-		err = ch.QueueBind(bus.AppName, ev, bus.EgressExchange, false, nil)
-		if err != nil {
-			return
-		}
-	}
+	bus.topologySetUp = true
 	return
 }
 

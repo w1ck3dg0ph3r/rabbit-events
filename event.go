@@ -53,9 +53,6 @@ type EventRouter func(*Event)
 // this event
 type EventHandler func(*Event, PublishFunc)
 
-// EventHandlers maps event name to event handler
-type EventHandlers map[string]EventHandler
-
 func eventFromDelivery(d *amqp.Delivery, ack acknowledger) *Event {
 	return &Event{
 		Name:          d.RoutingKey,
