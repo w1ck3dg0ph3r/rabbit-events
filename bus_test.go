@@ -36,7 +36,7 @@ func TestBus_PublishConsume(t *testing.T) {
 	const count = 1000
 	var recv int32
 
-	if err := bus.AddHandler("e1", func(e *events.Event, pub events.PublishFunc) {
+	if err := bus.SetHandler("e1", func(e *events.Event, pub events.PublishFunc) {
 		if !bytes.Equal(payload, e.Body) {
 			t.Fail()
 		}
@@ -45,7 +45,7 @@ func TestBus_PublishConsume(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := bus.AddHandler("e2", func(e *events.Event, pub events.PublishFunc) {
+	if err := bus.SetHandler("e2", func(e *events.Event, pub events.PublishFunc) {
 		if !bytes.Equal(payload, e.Body) {
 			t.Fail()
 		}
@@ -107,7 +107,7 @@ func BenchmarkPublishMock(b *testing.B) {
 func BenchmarkConsumeMock(b *testing.B) {
 	bus := eventBusMock()
 	counter := int64(b.N)
-	if err := bus.AddHandler("event.test", func(e *events.Event, pub events.PublishFunc) {
+	if err := bus.SetHandler("event.test", func(e *events.Event, pub events.PublishFunc) {
 		atomic.AddInt64(&counter, -1)
 		e.Ack()
 	}); err != nil {

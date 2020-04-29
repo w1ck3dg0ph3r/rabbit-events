@@ -14,7 +14,7 @@ import (
 // Bus is a RabbitMQ based event bus client
 //
 // Queue for the app, as well as ingress and egress exchanges will be created if absent.
-// Before starting the Bus, Connection, AppName, IngressExchange and handlers must be set.
+// Before starting the Bus, Connection, AppName and IngressExchange must be set.
 type Bus struct {
 	// RabbitMQ connection
 	Connection ConnectionOpenCloser
@@ -72,7 +72,7 @@ type Bus struct {
 	shouldQuit chan error
 
 	handlersM sync.RWMutex
-	handlers  map[string]*[]EventHandler
+	handlers  map[string]EventHandler
 
 	topologyM     sync.Mutex
 	topologySetUp bool
@@ -152,10 +152,10 @@ func (bus *Bus) Run() (err error) {
 	return
 }
 
-// AddHandler adds handler for event
+// SetHandler adds handler for event
 //
 // This opens connection to the broker and creates a binding between the exchange and the app queue
-func (bus *Bus) AddHandler(event string, handler EventHandler) (err error) {
+func (bus *Bus) SetHandler(event string, handler EventHandler) (err error) {
 	err = bus.ensureTopology()
 	if err != nil {
 		return
@@ -164,19 +164,10 @@ func (bus *Bus) AddHandler(event string, handler EventHandler) (err error) {
 	defer bus.handlersM.Unlock()
 
 	if bus.handlers == nil {
-		bus.handlers = make(map[string]*[]EventHandler)
+		bus.handlers = make(map[string]EventHandler)
 	}
-	if handlers, ok := bus.handlers[event]; ok {
-		*handlers = append(*handlers, handler)
-	} else {
-		bus.handlers[event] = &[]EventHandler{handler}
-	}
-	ch, err := bus.Connection.Open()
-	if err != nil {
-		return
-	}
-	defer ch.Close()
-	err = ch.QueueBind(bus.AppName, event, bus.IngressExchange, false, nil)
+	bus.handlers[event] = handler
+	err = bus.topologyChan.QueueBind(bus.AppName, event, bus.IngressExchange, false, nil)
 	return
 }
 
@@ -267,14 +258,12 @@ func (bus *Bus) handleEvent(e *Event) {
 	bus.handlersM.RLock()
 	defer bus.handlersM.RUnlock()
 
-	handlers, ok := bus.handlers[e.Name]
+	handler, ok := bus.handlers[e.Name]
 	if !ok {
 		bus.debugf("unknown event from %s(%s): %s", e.AppID, e.ID, e.Name)
 		return
 	}
-	for _, handle := range *handlers {
-		handle(e, bus.Publish)
-	}
+	handler(e, bus.Publish)
 }
 
 // ensureTopology creates associated exchanges, queues and bindings

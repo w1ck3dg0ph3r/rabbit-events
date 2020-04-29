@@ -57,7 +57,7 @@ This example shows basics of using event bus
             MaxEventsInFlight:    100,
         }
 
-        if err := bus.AddHandler("event.example", func(e *events.Event, publish events.PublishFunc) {
+        if err := bus.SetHandler("event.example", func(e *events.Event, publish events.PublishFunc) {
             fmt.Printf("id:%s, cid:%s\n", e.ID, e.CorrelationID)
             err := publish(&events.Event{Name: "event.second", ID: "id2", CorrelationID: e.ID})
             if err != nil {
@@ -70,7 +70,7 @@ This example shows basics of using event bus
             log.Fatal(err)
         }
 
-        if err := bus.AddHandler("event.second", func(e *events.Event, publish events.PublishFunc) {
+        if err := bus.SetHandler("event.second", func(e *events.Event, publish events.PublishFunc) {
             fmt.Printf("id:%s, cid:%s\n", e.ID, e.CorrelationID)
             e.Ack()
         }); err != nil {

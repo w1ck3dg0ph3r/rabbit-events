@@ -40,7 +40,7 @@ func main() {
 		Logger:               log,
 	}
 
-	if err := bus.AddHandler("event1", func(e *events.Event, publish events.PublishFunc) {
+	if err := bus.SetHandler("event1", func(e *events.Event, publish events.PublishFunc) {
 		fmt.Printf("event1 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
 		err := publish(&events.Event{Name: "event2", ID: "id2",
 			CorrelationID: e.ID})
@@ -54,7 +54,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := bus.AddHandler("event2", func(e *events.Event, publish events.PublishFunc) {
+	if err := bus.SetHandler("event2", func(e *events.Event, publish events.PublishFunc) {
 		fmt.Printf("event2 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
 		e.Ack()
 	}); err != nil {
