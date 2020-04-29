@@ -12,6 +12,8 @@ import (
 )
 
 func TestConsumer_SetupsChannelInConsumeMode(t *testing.T) {
+	t.Parallel()
+
 	ch := &mocks.Channel{}
 	conn := &MockConn{ch}
 	c := consumer{
@@ -37,6 +39,8 @@ func TestConsumer_SetupsChannelInConsumeMode(t *testing.T) {
 }
 
 func TestConsumer_RecreatesChannelOnError(t *testing.T) {
+	t.Parallel()
+
 	ch := &mocks.Channel{}
 	conn := &MockConn{ch}
 	c := consumer{
@@ -67,7 +71,7 @@ func TestConsumer_RecreatesChannelOnError(t *testing.T) {
 	<-chopened
 	errch <- &amqp.Error{}
 	runtime.Gosched()
-	_ = errch
+	time.Sleep(1 * time.Millisecond)
 
 	quit <- struct{}{}
 	wg.Wait()
@@ -75,6 +79,8 @@ func TestConsumer_RecreatesChannelOnError(t *testing.T) {
 }
 
 func TestConsumer_BatchesAcks(t *testing.T) {
+	t.Parallel()
+
 	ch := &mocks.Channel{}
 	conn := &MockConn{ch}
 	c := consumer{

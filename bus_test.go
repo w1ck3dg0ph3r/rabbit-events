@@ -29,6 +29,7 @@ func eventBusMock() *events.Bus {
 }
 
 func TestBus_PublishConsume(t *testing.T) {
+	t.Parallel()
 	bus := eventBusMock()
 
 	var payload = []byte("TEST")

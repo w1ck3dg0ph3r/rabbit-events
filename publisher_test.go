@@ -49,6 +49,8 @@ func TestPublisher_SetupsChannelInConfirmMode(t *testing.T) {
 }
 
 func TestPublisher_RecreatesChannelOnError(t *testing.T) {
+	t.Parallel()
+
 	ch := &mocks.Channel{}
 	conn := &MockConn{ch}
 	p := publisher{
@@ -77,7 +79,7 @@ func TestPublisher_RecreatesChannelOnError(t *testing.T) {
 	<-chopened
 	errch <- &amqp.Error{}
 	runtime.Gosched()
-	_ = errch
+	time.Sleep(1 * time.Millisecond)
 
 	quit <- struct{}{}
 	wg.Wait()
@@ -86,6 +88,8 @@ func TestPublisher_RecreatesChannelOnError(t *testing.T) {
 }
 
 func TestPublisher_WaitsForConfirm(t *testing.T) {
+	t.Parallel()
+
 	ch := &mocks.Channel{}
 	conn := &MockConn{ch}
 	bus := Bus{
@@ -102,6 +106,7 @@ func TestPublisher_WaitsForConfirm(t *testing.T) {
 	ch.On("QueueDeclare", mock.Anything, mock.Anything, mock.Anything, mock.Anything,
 		mock.Anything, mock.Anything).Return(amqp.Queue{}, nil)
 
+	var confirmsM sync.RWMutex
 	var confirms chan amqp.Confirmation
 
 	ch.On("Qos", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -112,7 +117,9 @@ func TestPublisher_WaitsForConfirm(t *testing.T) {
 	ch.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ch.On("NotifyPublish", mock.Anything).Return(
 		func(c chan amqp.Confirmation) chan amqp.Confirmation {
+			confirmsM.Lock()
 			confirms = c
+			confirmsM.Unlock()
 			return c
 		})
 
@@ -128,10 +135,12 @@ func TestPublisher_WaitsForConfirm(t *testing.T) {
 		if published {
 			publishedBeforeConfirm = true
 		}
+		confirmsM.RLock()
 		confirms <- amqp.Confirmation{
 			DeliveryTag: 1,
 			Ack:         true,
 		}
+		confirmsM.RUnlock()
 	}()
 
 	if err := bus.Publish(&Event{}); err != nil {
@@ -145,6 +154,8 @@ func TestPublisher_WaitsForConfirm(t *testing.T) {
 }
 
 func TestPublisher_WaitsForConfirmOnShutdown(t *testing.T) {
+	t.Parallel()
+
 	ch := &mocks.Channel{}
 	conn := &MockConn{ch}
 	bus := Bus{
@@ -162,6 +173,7 @@ func TestPublisher_WaitsForConfirmOnShutdown(t *testing.T) {
 		mock.Anything, mock.Anything).Return(amqp.Queue{}, nil)
 	ch.On("QueueBind", mock.Anything).Return(nil)
 
+	var confirmsM sync.RWMutex
 	var confirms chan amqp.Confirmation
 
 	ch.On("Qos", mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -172,7 +184,9 @@ func TestPublisher_WaitsForConfirmOnShutdown(t *testing.T) {
 	ch.On("Publish", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	ch.On("NotifyPublish", mock.Anything).Return(
 		func(c chan amqp.Confirmation) chan amqp.Confirmation {
+			confirmsM.Lock()
 			confirms = c
+			confirmsM.Unlock()
 			return c
 		})
 
@@ -188,10 +202,12 @@ func TestPublisher_WaitsForConfirmOnShutdown(t *testing.T) {
 		if shutdown {
 			shutdownBeforeConfirm = true
 		}
+		confirmsM.RLock()
 		confirms <- amqp.Confirmation{
 			DeliveryTag: 1,
 			Ack:         true,
 		}
+		confirmsM.RUnlock()
 	}()
 
 	down := make(chan bool)

@@ -44,6 +44,7 @@ func eventBus() *events.Bus {
 }
 
 func TestPublishConsume(t *testing.T) {
+	t.Parallel()
 	bus := eventBus()
 
 	var payload = []byte("TEST")
