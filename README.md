@@ -27,11 +27,18 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	events "github.com/w1ck3dg0ph3r/rabbit-events"
 )
+
+var log = &logrus.Logger{
+	Out:       os.Stderr,
+	Level:     logrus.DebugLevel,
+	Formatter: &logrus.TextFormatter{},
+}
 
 func main() {
 	// Create an event bus
@@ -45,9 +52,9 @@ func main() {
 			DialTimeout:       1 * time.Second,
 			ConnectionTimeout: 10 * time.Second,
 			ConnectionBackoff: 1 * time.Second,
-			Logger:            nil,
+			Logger:            log,
 		},
-		AppName:              "app1",
+		AppName:              "testapp",
 		IngressExchange:      "ingress",
 		EgressExchange:       "ingress",
 		EventTTL:             60 * time.Second,
@@ -55,24 +62,28 @@ func main() {
 		ConcurrentConsumers:  4,
 		ConcurrentPublishers: 2,
 		MaxEventsInFlight:    100,
+		Logger:               log,
+	}
 
-		EventHandlers: events.EventHandlers{
-			"event1": func(e *events.Event, publish events.PublishFunc) {
-				fmt.Printf("event1 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
-				err := publish(&events.Event{Name: "event2", ID: "id2",
-					CorrelationID: e.ID})
-				if err != nil {
-					fmt.Println(err)
-					e.Nack(false)
-					return
-				}
-				e.Ack()
-			},
-			"event2": func(e *events.Event, publish events.PublishFunc) {
-				fmt.Printf("event2 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
-				e.Ack()
-			},
-		},
+	if err := bus.SetHandler("event1", func(e *events.Event, publish events.PublishFunc) {
+		fmt.Printf("event1 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
+		err := publish(&events.Event{Name: "event2", ID: "id2",
+			CorrelationID: e.ID})
+		if err != nil {
+			fmt.Println(err)
+			e.Nack(false)
+			return
+		}
+		e.Ack()
+	}); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := bus.SetHandler("event2", func(e *events.Event, publish events.PublishFunc) {
+		fmt.Printf("event2 happened (id:%s, cid:%s)\n", e.ID, e.CorrelationID)
+		e.Ack()
+	}); err != nil {
+		log.Fatal(err)
 	}
 
 	// Run event bus
@@ -90,4 +101,5 @@ func main() {
 	// Stop event bus
 	bus.Shutdown()
 }
+
 ```
