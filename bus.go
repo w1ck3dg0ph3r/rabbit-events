@@ -76,6 +76,7 @@ type Bus struct {
 
 	topologyM     sync.Mutex
 	topologySetUp bool
+	topologyChan  channel.Channel
 
 	consumers   []*consumer
 	publishers  []*publisher
@@ -188,9 +189,11 @@ func (bus *Bus) Shutdown() {
 	}
 	close(bus.quit)
 	<-bus.done
-	err := bus.Connection.Close()
-	if err != nil {
-		bus.debugf("error closing connection: %s", err.Error())
+	if err := bus.topologyChan.Close(); err != nil {
+		bus.debugf("error closing topology channel: %v", err)
+	}
+	if err := bus.Connection.Close(); err != nil {
+		bus.debugf("error closing connection: %v", err)
 	}
 	atomic.StoreInt32(&bus.started, 0)
 }
@@ -273,16 +276,15 @@ func (bus *Bus) ensureTopology() (err error) {
 	if bus.topologySetUp {
 		return
 	}
-	ch, err := bus.Connection.Open()
+	bus.topologyChan, err = bus.Connection.Open()
 	if err != nil {
 		return
 	}
-	defer ch.Close()
-	err = ch.ExchangeDeclare(bus.IngressExchange, "topic", true, false, false, false, nil)
+	err = bus.topologyChan.ExchangeDeclare(bus.IngressExchange, "topic", true, false, false, false, nil)
 	if err != nil {
 		return
 	}
-	err = ch.ExchangeDeclare(bus.EgressExchange, "topic", true, false, false, false, nil)
+	err = bus.topologyChan.ExchangeDeclare(bus.EgressExchange, "topic", true, false, false, false, nil)
 	if err != nil {
 		return
 	}
@@ -293,7 +295,7 @@ func (bus *Bus) ensureTopology() (err error) {
 			"x-dead-letter-exchange": bus.DeadEventExchange,
 		}
 	}
-	_, err = ch.QueueDeclare(bus.AppName, true, false, false, false, args)
+	_, err = bus.topologyChan.QueueDeclare(bus.AppName, true, false, false, false, args)
 	if err != nil {
 		return
 	}
