@@ -69,9 +69,10 @@ func main() {
 	// Publish an event
 	err := bus.Publish(&events.Event{Name: "event1", ID: "id1"})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	time.Sleep(1 * time.Second)
+
+	time.Sleep(time.Second)
 
 	// Stop event bus
 	bus.Shutdown()

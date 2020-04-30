@@ -71,7 +71,7 @@ func TestConsumer_RecreatesChannelOnError(t *testing.T) {
 	<-chopened
 	errch <- &amqp.Error{}
 	runtime.Gosched()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	quit <- struct{}{}
 	wg.Wait()
@@ -94,7 +94,7 @@ func TestConsumer_BatchesAcks(t *testing.T) {
 	quit := make(chan struct{}, 1)
 
 	deliveries := make(chan amqp.Delivery, 5)
-	c.EventHandler = func(e *Event) {
+	c.EventRouter = func(e *Event) {
 		e.Ack()
 	}
 

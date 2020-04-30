@@ -14,7 +14,7 @@ import (
 	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/resequencer"
 )
 
-// consumer is an event consumer of the Bus
+// consumer is an event consuming worker
 //
 // Encapsulates AMQP channel that is configured for consuming messages. When message is
 // received on the channel, consumer will call back the Bus to handle that message.
@@ -27,7 +27,7 @@ type consumer struct {
 	AcksBatchSize     int
 	AcksMaxDelay      time.Duration
 
-	EventHandler EventRouter
+	EventRouter EventRouter
 
 	ShouldQuit chan error
 
@@ -60,7 +60,7 @@ func (c *consumer) Run(wg *sync.WaitGroup, quit <-chan struct{}) {
 		case msg, ok := <-c.msgs:
 			if ok {
 				e := eventFromDelivery(&msg, c)
-				c.EventHandler(e)
+				c.EventRouter(e)
 			}
 		case tag := <-c.acknowledgements.Out:
 			atomic.StoreUint64(&c.lastsequenced, tag)

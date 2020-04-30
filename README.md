@@ -1,7 +1,4 @@
-# rabbit-events
-
-[![](https://goreportcard.com/badge/github.com/w1ck3dg0ph3r/rabbit-events)](https://goreportcard.com/report/github.com/w1ck3dg0ph3r/rabbit-events)
-[![](https://api.travis-ci.org/w1ck3dg0ph3r/rabbit-events.svg?branch=master)](https://travis-ci.org/w1ck3dg0ph3r/rabbit-events)
+# rabbit-events [![](https://goreportcard.com/badge/github.com/w1ck3dg0ph3r/rabbit-events)](https://goreportcard.com/report/github.com/w1ck3dg0ph3r/rabbit-events) [![](https://api.travis-ci.org/w1ck3dg0ph3r/rabbit-events.svg?branch=master)](https://travis-ci.org/w1ck3dg0ph3r/rabbit-events)
 
 Event bus implemented on top of RabbitMQ message broker.
 
@@ -94,12 +91,12 @@ func main() {
 	// Publish an event
 	err := bus.Publish(&events.Event{Name: "event1", ID: "id1"})
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	time.Sleep(1 * time.Second)
+
+	time.Sleep(time.Second)
 
 	// Stop event bus
 	bus.Shutdown()
 }
-
 ```

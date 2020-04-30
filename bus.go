@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+
 	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/channel"
 )
 
@@ -52,7 +53,7 @@ type Bus struct {
 	// Default is same as MaxEventsInFlight
 	AcksBatchSize int
 
-	// Maximum amount of time between event being acked by handler and ack being sent to the broker
+	// Maximum amount of time between event being acked by handler and acker being sent to the broker
 	// Default is 1s
 	AcksMaxDelay time.Duration
 
@@ -66,9 +67,17 @@ type Bus struct {
 
 	Logger Logger
 
-	started    int32
-	done       chan error
-	quit       chan struct{}
+	started int32
+
+	// done should be closed when bus is finished
+	done chan error
+
+	// quit should be closed to signal consumers and producers to finish
+	// all remaining work and quit
+	quit chan struct{}
+
+	// shouldQuit should be closed by consumer or producer to signal that
+	// unrecoverable error has occurred and Bus should stop
 	shouldQuit chan error
 
 	handlersM sync.RWMutex
@@ -229,7 +238,7 @@ func (bus *Bus) startConsumers(wg *sync.WaitGroup) {
 			MaxEventsInFlight: bus.MaxEventsInFlight,
 			AcksBatchSize:     bus.AcksBatchSize,
 			AcksMaxDelay:      bus.AcksMaxDelay,
-			EventHandler:      bus.handleEvent,
+			EventRouter:       bus.routeEvent,
 			ShouldQuit:        bus.shouldQuit,
 			Logger:            bus.Logger,
 		}
@@ -256,8 +265,8 @@ func (bus *Bus) startPublishers(wg *sync.WaitGroup) {
 	}
 }
 
-// handleEvent routes given event msg to appropriate handler
-func (bus *Bus) handleEvent(e *Event) {
+// routeEvent routes given event msg to appropriate handler
+func (bus *Bus) routeEvent(e *Event) {
 	bus.handlersM.RLock()
 	defer bus.handlersM.RUnlock()
 
@@ -269,10 +278,11 @@ func (bus *Bus) handleEvent(e *Event) {
 	go handler(e, bus.Publish)
 }
 
-// ensureTopology creates associated exchanges, queues and bindings
+// ensureTopology ensures that necessary exchanges and queues exist on broker
 func (bus *Bus) ensureTopology() (err error) {
 	bus.topologyM.Lock()
 	defer bus.topologyM.Unlock()
+
 	if bus.topologySetUp {
 		return
 	}

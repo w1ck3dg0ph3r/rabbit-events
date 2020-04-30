@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+
 	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/channel"
 )
 
@@ -37,9 +38,10 @@ type Connection struct {
 
 	Logger Logger
 
-	m    sync.Mutex
-	conn *amqp.Connection
-	url  string
+	connM sync.Mutex
+	conn  *amqp.Connection
+
+	currentURL string
 
 	defaultsSet bool
 }
@@ -54,8 +56,8 @@ var (
 // Clients need to reacquire channel on any errors and when channel or underlying
 // connection closes. See github.com/streadway/amqp documentation for details.
 func (c *Connection) Open() (channel channel.Channel, err error) {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.connM.Lock()
+	defer c.connM.Unlock()
 
 	if c.conn == nil || c.conn.IsClosed() {
 		err = c.connect()
@@ -70,8 +72,8 @@ func (c *Connection) Open() (channel channel.Channel, err error) {
 
 // Close closes the connection
 func (c *Connection) Close() (err error) {
-	c.m.Lock()
-	defer c.m.Unlock()
+	c.connM.Lock()
+	defer c.connM.Unlock()
 
 	if c.conn != nil {
 		err = c.conn.Close()
@@ -116,7 +118,7 @@ func (c *Connection) connectRandomNode(done chan<- struct{}) {
 			delay += c.ConnectionBackoff
 			continue
 		}
-		c.url = randomUrl
+		c.currentURL = randomUrl
 		if c.Logger != nil {
 			c.Logger.Infof("connected to %s", randomHostname)
 		}

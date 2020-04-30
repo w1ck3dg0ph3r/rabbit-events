@@ -79,7 +79,7 @@ func TestPublisher_RecreatesChannelOnError(t *testing.T) {
 	<-chopened
 	errch <- &amqp.Error{}
 	runtime.Gosched()
-	time.Sleep(1 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond)
 
 	quit <- struct{}{}
 	wg.Wait()

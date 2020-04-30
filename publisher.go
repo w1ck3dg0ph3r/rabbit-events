@@ -6,13 +6,18 @@ import (
 	"sync"
 	"time"
 
-	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/channel"
-
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+
+	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/channel"
 )
 
-// publisher is an event publisher of the Bus
+// publisher is an event publishing worker
+//
+// Encapsulates AMQP channel that is configured for publishing messages. When message is
+// sent on the Publishings channel, publisher will send the message and wait for acknowledgement
+// from the broker. When publishing is acked/nacked by the broker or the bus is shutdown,
+// publisher will send the result on publishing's done chan.
 type publisher struct {
 	ID int
 

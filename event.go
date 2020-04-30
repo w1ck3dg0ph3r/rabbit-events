@@ -7,7 +7,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// Event represents a single Bus event
+// Event represents a single event bus event
 type Event struct {
 	Name string // Name of the event
 
@@ -21,8 +21,8 @@ type Event struct {
 	ContentType string // Event body content type
 	Body        []byte // Event body
 
-	tag uint64
-	ack acknowledger
+	tag   uint64
+	acker acknowledger
 }
 
 type acknowledger interface {
@@ -30,21 +30,21 @@ type acknowledger interface {
 	Nack(tag uint64, requeue bool)
 }
 
-// Acknowledge successfully processing an incoming event
+// Ack acknowledges successfully processing an incoming event
 func (e *Event) Ack() {
-	e.ack.Ack(e.tag)
+	e.acker.Ack(e.tag)
 }
 
-// Negatively acknowledge failure to process an incoming event
-// and optionally requeue the event
+// Nack acknowledges failure to process an incoming event
+// and optionally requests to requeue the event
 func (e *Event) Nack(requeue bool) {
-	e.ack.Nack(e.tag, requeue)
+	e.acker.Nack(e.tag, requeue)
 }
 
 // PublishFunc is an event publishing function to use from event handlers
 type PublishFunc func(*Event) error
 
-// EventRouter is a function that router event to handlers based on event name
+// EventRouter is a function that routes event to handler based on event name
 type EventRouter func(*Event)
 
 // EventHandler is a function that handles an event
@@ -53,7 +53,7 @@ type EventRouter func(*Event)
 // this event
 type EventHandler func(*Event, PublishFunc)
 
-func eventFromDelivery(d *amqp.Delivery, ack acknowledger) *Event {
+func eventFromDelivery(d *amqp.Delivery, acker acknowledger) *Event {
 	return &Event{
 		Name:          d.RoutingKey,
 		ID:            d.MessageId,
@@ -64,8 +64,8 @@ func eventFromDelivery(d *amqp.Delivery, ack acknowledger) *Event {
 		ContentType:   d.ContentType,
 		Body:          d.Body,
 
-		tag: d.DeliveryTag,
-		ack: ack,
+		tag:   d.DeliveryTag,
+		acker: acker,
 	}
 }
 
