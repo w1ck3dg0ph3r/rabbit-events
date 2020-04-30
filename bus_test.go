@@ -71,7 +71,7 @@ func TestBus_PublishConsume(t *testing.T) {
 		})
 	}
 	bus.Shutdown()
-	if count != recv {
+	if count != atomic.LoadInt32(&recv) {
 		fmt.Println(count)
 		t.Fail()
 	}

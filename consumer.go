@@ -7,6 +7,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/streadway/amqp"
+
+	"sync/atomic"
+
 	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/channel"
 	"github.com/w1ck3dg0ph3r/rabbit-events/pkg/resequencer"
 )
@@ -60,8 +63,8 @@ func (c *consumer) Run(wg *sync.WaitGroup, quit <-chan struct{}) {
 				c.EventHandler(e)
 			}
 		case tag := <-c.acknowledgements.Out:
-			c.lastsequenced = tag
-			if c.lastsequenced-c.lastacked >= uint64(c.AcksBatchSize) {
+			atomic.StoreUint64(&c.lastsequenced, tag)
+			if tag-atomic.LoadUint64(&c.lastacked) >= uint64(c.AcksBatchSize) {
 				c.ackSequenced()
 				ackTicker = time.NewTicker(c.AcksMaxDelay)
 			}
@@ -84,7 +87,7 @@ func (c *consumer) Run(wg *sync.WaitGroup, quit <-chan struct{}) {
 }
 
 func (c *consumer) Ack(tag uint64) {
-	if tag < c.lastacked {
+	if tag < atomic.LoadUint64(&c.lastacked) {
 		ignoreError(c.ch.Ack(tag, false))
 		return
 	}
@@ -92,33 +95,35 @@ func (c *consumer) Ack(tag uint64) {
 }
 
 func (c *consumer) Nack(tag uint64, requeue bool) {
-	if tag < c.lastsequenced {
+	if tag < atomic.LoadUint64(&c.lastsequenced) {
 		c.ackSequenced()
 		c.acknowledgements.Reset(tag, func(n uint64) {
 			ignoreError(c.ch.Ack(n, false))
 		})
-		c.lastacked = tag
+		atomic.StoreUint64(&c.lastacked, tag)
 	} else {
 		c.ackSequenced()
 		c.ackUnsequenced()
 		c.acknowledgements.StartAt(tag)
-		c.lastacked = tag
+		atomic.StoreUint64(&c.lastacked, tag)
 	}
 	ignoreError(c.ch.Nack(tag, false, requeue))
 }
 
 func (c *consumer) ackSequenced() {
-	if c.lastsequenced > c.lastacked {
-		ignoreError(c.ch.Ack(c.lastsequenced, true))
-		c.lastacked = c.lastsequenced
+	lastsequenced := atomic.LoadUint64(&c.lastsequenced)
+	lastacked := atomic.LoadUint64(&c.lastacked)
+	if lastsequenced > lastacked {
+		ignoreError(c.ch.Ack(lastsequenced, true))
+		atomic.StoreUint64(&c.lastacked, lastsequenced)
 	}
 }
 
 func (c *consumer) ackUnsequenced() {
 	c.acknowledgements.DumpUnsequenced(func(n uint64) {
 		ignoreError(c.ch.Ack(n, false))
-		if n > c.lastacked {
-			c.lastacked = n
+		if n > atomic.LoadUint64(&c.lastacked) {
+			atomic.StoreUint64(&c.lastacked, n)
 		}
 	})
 }

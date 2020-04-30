@@ -266,7 +266,7 @@ func (bus *Bus) handleEvent(e *Event) {
 		bus.debugf("unknown event from %s(%s): %s", e.AppID, e.ID, e.Name)
 		return
 	}
-	handler(e, bus.Publish)
+	go handler(e, bus.Publish)
 }
 
 // ensureTopology creates associated exchanges, queues and bindings
